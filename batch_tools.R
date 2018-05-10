@@ -18,11 +18,11 @@ simu.error <- function(n.simu,
     rst <- switch(type,
                   normal = {rnorm(n.simu, mu, ysig)},
                   skewed = {
-        mu        <- skew.n * (1-skew.p) / skew.p;
+        smu       <- skew.n * (1-skew.p) / skew.p;
         va        <- skew.n * (1-skew.p) / skew.p^2;
         noise.sig <- skew.noise;
         rst       <- rnbinom(n.simu, skew.n, skew.p);
-        rst       <- rst - mu + rnorm(n.simu, mu, noise.sig);
+        rst       <- rst - smu + rnorm(n.simu, mu, noise.sig);
         rst       <- rst/sqrt(va + noise.sig^2)*ysig;
     });
 
