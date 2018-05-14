@@ -1,6 +1,37 @@
 
 require(clinfun);
 
+
+##-----------------------------------------------------------------------------------
+##-----------------------------------------------------------------------------------
+##                       BATCH EFFECT
+##-----------------------------------------------------------------------------------
+##-----------------------------------------------------------------------------------
+get.truth <- function(mu, par.error, p0, p1, n.total = 100000) {
+
+    true.pts <- simu.all.pts(batch.size = 1,
+                             n.total = n.total,
+                             mu = mu,
+                             par.error = par.error);
+    ## measure 1: ratio
+    var.all     <- var(true.pts$Y);
+    ## variance without batch effect
+    var.nobatch <- var(exp(mu + true.pts$epsilon));
+    var.ratio   <- var.all/var.nobatch - 1;
+
+    ## cut off
+    cut.y <- NULL;
+    for (p in c(p0,p1)) {
+        cut.y <- c(cut.y, as.numeric(quantile(true.pts$Y, 1-p)));
+    }
+
+    c(var.ratio   = var.ratio,
+      cuty.h0     = cut.y[1],
+      cuty.h1     = cut.y[2],
+      var.nobatch = var.nobatch,
+      var.all     = var.all);
+}
+
 ##-----------------------------------------------------------------------------------
 ##-----------------------------------------------------------------------------------
 ##                       SIMULATION
@@ -30,40 +61,106 @@ simu.error <- function(n.simu,
 }
 
 ## simulate for an individual batch
-simu.batch <- function(batch.size, mu = 0,
-                       par.error = list(gamma   = list(error.type = "normal", ysig = 1),
-                                        delta   = list(error.type = "normal", ysig = 1, mu = 1),
-                                        epsilon = list(error.type = "normal", ysig = 1)),
-                       take.exp = TRUE) {
+simu.all.pts <- function(batch.size = 3, n.total = batch.size, mu = 0,
+                         par.error = list(gamma   = list(error.type = "normal", ysig = 1),
+                                          delta   = list(error.type = "normal", ysig = 1, mu = 1),
+                                          epsilon = list(error.type = "normal", ysig = 1))) {
+
+    n.batch <- as.numeric(ceiling(n.total / batch.size));
+
     beffs <- NULL;
     for (ef in c("gamma", "delta")) {
         cur.par <- par.error[[ef]];
-        cur.eff <- do.call(simu.error, c(n.simu = 1, cur.par));
-        beffs   <- c(beffs, cur.eff);
+        cur.eff <- do.call(simu.error, c(n.simu = n.batch, cur.par));
+        beffs   <- cbind(beffs, cur.eff);
     }
 
-    epsilons <- do.call(simu.error,
-                        c(n.simu = batch.size, par.error[["epsilon"]]));
-    rst <- mu + beffs[1] + beffs[2] * epsilons;
+    epsilon  <- do.call(simu.error,
+                        c(n.simu = n.batch * batch.size, par.error[["epsilon"]]));
 
-    if (take.exp)
-        rst <- exp(rst);
+    ystar <- rep(mu, n.batch * batch.size);
+    ystar <- ystar + rep(beffs[,1], each = batch.size);
+    ystar <- ystar + rep(beffs[,2], each = batch.size)  * epsilon;
+    batch <- rep(1:n.batch, each = batch.size);
 
-    rst
+    ## drop extra patients
+    ystar  <- ystar[1:n.total];
+    epsion <- epsilon[1:n.total];
+    batch  <- batch[1:n.total];
+
+    list(Y          = exp(ystar),
+         batch      = batch,
+         Ystar      = ystar,
+         mu         = mu,
+         batch.size = batch.size,
+         gamma      = beffs[,1],
+         delta      = beffs[,2],
+         epsilon    = epsilon,
+         par.error  = par.error);
 }
 
-## simu all patients in batch size B
-simu.all.pts <- function(n.tot, batch.size, ...) {
-    rst   <- NULL;
-    cur.n <- 0;
-    cur.b <- 0;
-    while (cur.n < n.tot) {
-        cur.b   <- cur.b + 1;
-        cur.rst <- simu.batch(batch.size = min(batch.size, n.tot - cur.n), ...);
-        rst     <- rbind(rst, cbind(BATCH = cur.b, Y = cur.rst));
-        cur.n   <- cur.n + batch.size;
+
+## simulate trials
+simu.trial <- function(p1 = 0.3, p0 = 0.15,
+                       alpha = 0.05, power = 0.8,
+                       batch.size = 3,
+                       nreps = 10000,
+                       mu = 0, par.error = list(gamma   = list(error.type = "normal", ysig = 1),
+                                                delta   = list(error.type = "normal", ysig = 1, mu = 1),
+                                                epsilon = list(error.type = "normal", ysig = 1)),
+                       cuty.h01 = NULL, n.truepts = 1000000, seed = NULL) {
+
+    if (is.numeric(seed))
+        set.seed(seed);
+
+    ## truth
+    truth <- get.truth(mu, par.error, p0, p1, n.total = n.truepts);
+
+    if (is.null(cuty.h01))
+        cuty.h01 <- truth[c("cuty.h0", "cuty.h1")];
+
+    ## designs
+    design.simon  <- get.simon.2.opt(pu = p0, pa = p1, ep1   = alpha, ep2  = 1 - power);
+    design.single <- get.single.size(p0 = p0, p1 = p1, alpha = alpha, beta = 1 - power);
+
+    ## replications
+    all.rst <- NULL;
+    for (rep in 1:NREPS) {
+        print(rep);
+
+        cur.rst <- NULL;
+        ## ---- simon design ------------
+        cur.simon.pt <- simu.all.pts(n.total    = design.simon["n"],
+                                     batch.size = batch.size,
+                                     mu         = mu,
+                                     par.error  = par.error);
+
+        for (cuty in cuty.h01) {
+            cur.rst <- c(cur.rst,
+                         sum.simon(cur.simon.pt$Y > cuty, design.simon, alpha, p0));
+        }
+
+        ##----single stage design -----
+        cur.single.pt <- simu.all.pts(n.total    = design.single["n"],
+                                      batch.size = batch.size,
+                                      mu         = mu,
+                                      par.error  = par.error);
+        for (cuty in cuty.h01) {
+            cur.rst <- c(cur.rst,
+                         sum.single(cur.single.pt$Y > cuty, alpha, p0));
+        }
+
+        all.rst <- rbind(all.rst, cur.rst);
     }
-    rst
+
+    rst <- list(var.ratio     = truth["var.ratio"],
+                sum.simon.h0  = sum.simon.all(all.rst[,1:6],   truep = p0),
+                sum.simon.h1  = sum.simon.all(all.rst[,7:12],  truep = p1),
+                sum.single.h0 = sum.single.all(all.rst[,13:17],truep = p0),
+                sum.single.h1 = sum.single.all(all.rst[,18:22],truep = p1),
+                p01           = c(p0, p1),
+                mu            = mu,
+                par.error     = par.error)
 }
 
 ##-----------------------------------------------------------------------------------
@@ -81,7 +178,6 @@ get.z.ab <- function(alpha=0.05, beta=0.2) {
 
 
 get.single.size <- function(p1, p0, alpha=0.05, beta=0.2) {
-
     zab     <- get.z.ab(alpha=alpha, beta=beta);
     z.alpha <- zab[1];
     z.beta  <- zab[2];
@@ -94,7 +190,25 @@ get.single.size <- function(p1, p0, alpha=0.05, beta=0.2) {
 
 sum.single <- function(resp, alpha, p0) {
     cur.test <- binom.test(sum(resp), length(resp), p = p0, conf.level = 1-alpha);
-    c(cur.test$estimate, cur.test$p.value, cur.test$conf.int, cur.test$conf.int[1] > p0);
+    rej      <- cur.test$conf.int[1] > p0 | cur.test$conf.int[2] < p0;
+
+    c(cur.test$estimate,
+      cur.test$p.value < alpha,
+      cur.test$conf.int,
+      rej);
+}
+
+sum.single.all <- function(single.rst, truep) {
+    all.mean <- as.numeric(apply(single.rst, 2, mean));
+    bias     <- all.mean[1] - truep;
+    mse      <- mean((single.rst[,1] - truep)^2);
+    conf.width <- mean(single.rst[,4] - single.rst[3]);
+
+    c(AvgCIW  = conf.width,
+      RejRate = all.mean[5],
+      Bias    = bias,
+      MSE     = mse,
+      RejPval = all.mean[2]);
 }
 
 
@@ -148,14 +262,32 @@ get.simon.2stage <- function(ntotal, p0, p1, alpha=0.025, beta=0.2) {
     rst
 }
 
-sum.simon <- function(resp, design) {
+sum.simon <- function(resp, design, alpha, p0) {
     stop.1 <- sum(resp[1:design["n1"]]) <= design["r1"];
     rej    <- sum(resp) > design["r"];
     enroll <- ifelse(stop.1, design["n1"], design["n"]);
-    mu     <- ifelse(stop.1, mean(resp[1:design["n1"]]), mean(resp));
 
+    resp.obj <- ifelse(stop.1, resp[1:design["n1"]], resp);
+    cur.test <- binom.test(sum(resp.obj), length(resp.obj),
+                           p = p0,
+                           conf.level = 1-alpha);
     c(stop1  = stop.1,
       rej    = rej,
       enroll = enroll,
-      rate   = mu)
+      cur.test$estimate,
+      cur.test$conf.int);
+}
+
+sum.simon.all <- function(simon.rst, truep) {
+    all.mean <- as.numeric(apply(simon.rst, 2, mean));
+    bias     <- all.mean[4] - truep;
+    mse      <- mean((simon.rst[,4] - truep)^2);
+    ciw      <- mean(simon.rst[,6] - simon.rst[,5]);
+
+    c(AvgN = all.mean[3],
+      AvgEarlyStop = all.mean[1],
+      AvgCIW = ciw,
+      RejRate = all.mean[2],
+      Bias = bias,
+      MSE = mse);
 }
