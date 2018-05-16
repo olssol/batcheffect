@@ -1,0 +1,15 @@
+   \begin{table}[ht]
+   \small
+   \centering
+   \begin{tabular}{crcccccc} \hline\hline
+             && \multicolumn{5}{c}{Dose Level} & \\ \cline{3-7}
+   Scenario  && 1 & 2 &3 & 4 & 5 & Total\\ \hline
+   AA&$(p,q)$                & AA & AA & AA & AA & AA     \\ 
+     &\%     & AA & AA & AA & AA & AA & AA \\
+     &N                & AA & AA & AA & AA & AA & AA \\
+     &(D,R)  & (AA,AA) & (AA,AA) & (AA,AA) & (AA,AA) & (AA,AA) & (AA,AA) \\ \hline
+   \hline
+   \end{tabular}
+   \caption{AA}
+   \label{tab:rstAA}
+   \end{table}

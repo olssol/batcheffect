@@ -1,6 +1,26 @@
 
 require(clinfun);
 
+##-----------------------------------------------------------------------------------
+##-----------------------------------------------------------------------------------
+##                              TOOLS
+##-----------------------------------------------------------------------------------
+##-----------------------------------------------------------------------------------
+sub.txt.w.no <- function(numbers, template.f, out.f="rst.txt", sub.str="AA") {
+    if (!file.exists(template.f)) {
+        return;
+    }
+    ##read
+    tpla <- readChar(template.f, file.info(template.f)$size);
+
+    ##subsitute
+    for (i in 1:length(numbers)) {
+        tpla <- sub(sub.str, numbers[i], tpla);
+    }
+
+    ##write out
+    write(tpla, file=out.f);
+}
 
 ##-----------------------------------------------------------------------------------
 ##-----------------------------------------------------------------------------------
@@ -61,12 +81,19 @@ simu.error <- function(n.simu,
 }
 
 ## simulate for an individual batch
-simu.all.pts <- function(batch.size = 3, n.total = batch.size, mu = 0,
+simu.all.pts <- function(batch.size = 3,
+                         n.total = batch.size,
+                         n.batch = NULL,
+                         mu = 0,
                          par.error = list(gamma   = list(error.type = "normal", ysig = 1),
                                           delta   = list(error.type = "normal", ysig = 1, mu = 1),
                                           epsilon = list(error.type = "normal", ysig = 1))) {
 
-    n.batch <- as.numeric(ceiling(n.total / batch.size));
+    if (is.null(batch.size)) {
+        batch.size <- ceiling(n.total/batch.size);
+    } else {
+        n.batch <- as.numeric(ceiling(n.total / batch.size));
+    }
 
     beffs <- NULL;
     for (ef in c("gamma", "delta")) {
@@ -103,7 +130,7 @@ simu.all.pts <- function(batch.size = 3, n.total = batch.size, mu = 0,
 ## simulate trials
 simu.trial <- function(p1 = 0.3, p0 = 0.15,
                        alpha = 0.05, power = 0.8,
-                       batch.size = 3,
+                       batch.size = 3, n.batch = NULL,
                        nreps = 10000,
                        mu = 0, par.error = list(gamma   = list(error.type = "normal", ysig = 1),
                                                 delta   = list(error.type = "normal", ysig = 1, mu = 1),
@@ -129,11 +156,19 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
         print(rep);
 
         cur.rst <- NULL;
-        ## ---- simon design ------------
-        cur.simon.pt <- simu.all.pts(n.total    = design.simon["n"],
-                                     batch.size = batch.size,
-                                     mu         = mu,
-                                     par.error  = par.error);
+
+        ##---- simon design ------------
+        cur.simon.pt <- NULL;
+        simon.n      <- c(design.simon["n1"],
+                          design.simon["n"] - design.simon["n1"]);
+        for (sn in simon.n) {
+            cur.pt <- simu.all.pts(n.total    = sn,
+                                   batch.size = batch.size,
+                                   n.batch    = n.batch,
+                                   mu         = mu,
+                                   par.error  = par.error);
+            cur.simon.pt <- c(cur.simon.pt, cur.pt);
+        }
 
         for (cuty in cuty.h01) {
             cur.rst <- c(cur.rst,
@@ -143,6 +178,7 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
         ##----single stage design -----
         cur.single.pt <- simu.all.pts(n.total    = design.single["n"],
                                       batch.size = batch.size,
+                                      n.batch    = n.batch,
                                       mu         = mu,
                                       par.error  = par.error);
         for (cuty in cuty.h01) {

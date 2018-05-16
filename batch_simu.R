@@ -14,6 +14,7 @@ if (0 == length(ARGS.INX)) {
 P1        <- 0.3;
 P0        <- 0.15;
 ALPHA     <- 0.05; ##two sided
+
 POWER     <- 0.8;
 
 ## response
@@ -36,3 +37,5 @@ rst <- simu.trial(p1 = P1, p0 = P0, batch.size = BATCH.SIZE,
                   nreps = NREPS, seed = 10000);
 rst
 
+##-----generate table ---------
+sub.txt.w.no(1:100, template.f = "temp.txt", out.f = "rst.txt");
