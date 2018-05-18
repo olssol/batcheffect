@@ -89,8 +89,11 @@ simu.all.pts <- function(batch.size = 3,
                                           delta   = list(error.type = "normal", ysig = 1, mu = 1),
                                           epsilon = list(error.type = "normal", ysig = 1))) {
 
+    if (!xor(is.null(batch.size), is.null(n.batch)))
+        stop("Please specify either batch.size or n.batch.")
+
     if (is.null(batch.size)) {
-        batch.size <- ceiling(n.total/batch.size);
+        batch.size <- ceiling(n.total/n.batch);
     } else {
         n.batch <- as.numeric(ceiling(n.total / batch.size));
     }
@@ -158,25 +161,25 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
         cur.rst <- NULL;
 
         ##---- simon design ------------
-        cur.simon.pt <- NULL;
         simon.n      <- c(design.simon["n1"],
                           design.simon["n"] - design.simon["n1"]);
+        cur.simon.pt <- NULL;
         for (sn in simon.n) {
             cur.pt <- simu.all.pts(n.total    = sn,
                                    batch.size = batch.size,
                                    n.batch    = n.batch,
                                    mu         = mu,
                                    par.error  = par.error);
-            cur.simon.pt <- c(cur.simon.pt, cur.pt);
+            cur.simon.pt <- c(cur.simon.pt, cur.pt$Y);
         }
 
         for (cuty in cuty.h01) {
             cur.rst <- c(cur.rst,
-                         sum.simon(cur.simon.pt$Y > cuty, design.simon, alpha, p0));
+                         sum.simon(cur.simon.pt > cuty, design.simon, alpha, p0));
         }
 
         ##----single stage design -----
-        cur.single.pt <- simu.all.pts(n.total    = design.single["n"],
+        cur.single.pt <- simu.all.pts(n.total    = as.numeric(design.single["n"]),
                                       batch.size = batch.size,
                                       n.batch    = n.batch,
                                       mu         = mu,
@@ -194,6 +197,8 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
                 sum.simon.h1  = sum.simon.all(all.rst[,7:12],  truep = p1),
                 sum.single.h0 = sum.single.all(all.rst[,13:17],truep = p0),
                 sum.single.h1 = sum.single.all(all.rst[,18:22],truep = p1),
+                design.simon  = design.simon,
+                design.single = design.single,
                 p01           = c(p0, p1),
                 mu            = mu,
                 par.error     = par.error)
@@ -307,6 +312,7 @@ sum.simon <- function(resp, design, alpha, p0) {
     cur.test <- binom.test(sum(resp.obj), length(resp.obj),
                            p = p0,
                            conf.level = 1-alpha);
+
     c(stop1  = stop.1,
       rej    = rej,
       enroll = enroll,

@@ -11,10 +11,9 @@ if (0 == length(ARGS.INX)) {
 ##-----SIMULATION SETTINGS---------
 
 ## hypothesis
-P1        <- 0.3;
+P1        <- 0.50;
 P0        <- 0.15;
 ALPHA     <- 0.05; ##two sided
-
 POWER     <- 0.8;
 
 ## response
@@ -24,14 +23,14 @@ PAR.ERROR <- list(gamma   = list(error.type = "normal", ysig = 0.1),
                   epsilon = list(error.type = "normal", ysig = 1));
 
 ## conduct
-BATCH.SIZE <- 3;
-
+BATCH.SIZE <- 9;
+N.BATCH    <- NULL;
 ## replications
 NREPS <- 1000;
 
 
 ##-----SIMULATION ---------
-rst <- simu.trial(p1 = P1, p0 = P0, batch.size = BATCH.SIZE,
+rst <- simu.trial(p1 = P1, p0 = P0, batch.size = BATCH.SIZE, n.batch = N.BATCH,
                   mu = MU, par.error = PAR.ERROR,
                   alpha = ALPHA, power = POWER,
                   nreps = NREPS, seed = 10000);
