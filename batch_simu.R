@@ -11,8 +11,8 @@ if (0 == length(ARGS.INX)) {
 ##-----SIMULATION SETTINGS---------
 
 ## hypothesis
-P1        <- 0.50;
-P0        <- 0.15;
+P1        <- 0.95;
+P0        <- 0.70;
 ALPHA     <- 0.05; ##two sided
 POWER     <- 0.8;
 
@@ -23,10 +23,10 @@ PAR.ERROR <- list(gamma   = list(error.type = "normal", ysig = 0.1),
                   epsilon = list(error.type = "normal", ysig = 1));
 
 ## conduct
-BATCH.SIZE <- 9;
+BATCH.SIZE <- 3;
 N.BATCH    <- NULL;
 ## replications
-NREPS <- 1000;
+NREPS      <- 1000;
 
 
 ##-----SIMULATION ---------
@@ -35,6 +35,3 @@ rst <- simu.trial(p1 = P1, p0 = P0, batch.size = BATCH.SIZE, n.batch = N.BATCH,
                   alpha = ALPHA, power = POWER,
                   nreps = NREPS, seed = 10000);
 rst
-
-##-----generate table ---------
-sub.txt.w.no(1:100, template.f = "temp.txt", out.f = "rst.txt");

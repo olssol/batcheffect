@@ -82,12 +82,12 @@ simu.error <- function(n.simu,
 
 ## simulate for an individual batch
 simu.all.pts <- function(batch.size = 3,
-                         n.total = batch.size,
-                         n.batch = NULL,
-                         mu = 0,
-                         par.error = list(gamma   = list(error.type = "normal", ysig = 1),
-                                          delta   = list(error.type = "normal", ysig = 1, mu = 1),
-                                          epsilon = list(error.type = "normal", ysig = 1))) {
+                         n.total    = batch.size,
+                         n.batch    = NULL,
+                         mu         = 0,
+                         par.error  = list(gamma   = list(error.type = "normal", ysig = 1),
+                                           delta   = list(error.type = "normal", ysig = 1, mu = 1),
+                                           epsilon = list(error.type = "normal", ysig = 1))) {
 
     if (!xor(is.null(batch.size), is.null(n.batch)))
         stop("Please specify either batch.size or n.batch.")
@@ -201,6 +201,8 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
                 design.single = design.single,
                 p01           = c(p0, p1),
                 mu            = mu,
+                batch.size    = batch.size,
+                n.batch       = n.batch,
                 par.error     = par.error)
 }
 
@@ -240,10 +242,10 @@ sum.single <- function(resp, alpha, p0) {
 }
 
 sum.single.all <- function(single.rst, truep) {
-    all.mean <- as.numeric(apply(single.rst, 2, mean));
-    bias     <- all.mean[1] - truep;
-    mse      <- mean((single.rst[,1] - truep)^2);
-    conf.width <- mean(single.rst[,4] - single.rst[3]);
+    all.mean   <- as.numeric(apply(single.rst, 2, mean));
+    bias       <- all.mean[1] - truep;
+    mse        <- mean((single.rst[,1] - truep)^2);
+    conf.width <- mean(single.rst[,4] - single.rst[,3]);
 
     c(AvgCIW  = conf.width,
       RejRate = all.mean[5],
