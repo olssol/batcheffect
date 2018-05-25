@@ -28,7 +28,6 @@ sub.txt.w.no <- function(numbers, template.f, out.f="rst.txt", sub.str="AA") {
 ##-----------------------------------------------------------------------------------
 ##-----------------------------------------------------------------------------------
 get.truth <- function(mu, par.error, p0, p1, n.total = 100000) {
-
     true.pts <- simu.all.pts(batch.size = 1,
                              n.total = n.total,
                              mu = mu,
@@ -98,6 +97,8 @@ simu.all.pts <- function(batch.size = 3,
         n.batch <- as.numeric(ceiling(n.total / batch.size));
     }
 
+    cat("ntotal=", n.total, " n.batch=", n.batch, " batch.size=", batch.size, "\n");
+
     beffs <- NULL;
     for (ef in c("gamma", "delta")) {
         cur.par <- par.error[[ef]];
@@ -106,17 +107,12 @@ simu.all.pts <- function(batch.size = 3,
     }
 
     epsilon  <- do.call(simu.error,
-                        c(n.simu = n.batch * batch.size, par.error[["epsilon"]]));
+                        c(n.simu = n.total, par.error[["epsilon"]]));
 
-    ystar <- rep(mu, n.batch * batch.size);
-    ystar <- ystar + rep(beffs[,1], each = batch.size);
-    ystar <- ystar + rep(beffs[,2], each = batch.size)  * epsilon;
-    batch <- rep(1:n.batch, each = batch.size);
-
-    ## drop extra patients
-    ystar  <- ystar[1:n.total];
-    epsion <- epsilon[1:n.total];
-    batch  <- batch[1:n.total];
+    ystar <- rep(mu, n.total);
+    ystar <- ystar + rep(beffs[,1], each = batch.size)[1:n.total];
+    ystar <- ystar + rep(beffs[,2], each = batch.size)[1:n.total] * epsilon;
+    batch <- rep(1:n.batch, each = batch.size)[1:n.total];
 
     list(Y          = exp(ystar),
          batch      = batch,
@@ -157,7 +153,6 @@ simu.trial <- function(p1 = 0.3, p0 = 0.15,
     all.rst <- NULL;
     for (rep in 1:NREPS) {
         print(rep);
-
         cur.rst <- NULL;
 
         ##---- simon design ------------
